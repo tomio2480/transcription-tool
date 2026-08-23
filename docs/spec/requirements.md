@@ -53,7 +53,8 @@
 1. `transcribe-audio transcribe` は録音を受け取り，`<output-dir>/<stem>.txt` を生成してそのパスを stdout に 1 行出力する．
 2. 中間 WAV は 16 kHz・モノラル・`pcm_s16le` とし，whisper.cpp は `-mc 0`・`-otxt`・`-np` で起動する．
 3. 辞書は任意入力とする．与えられたときのみ canonical 語を初期プロンプトへ注入する．
-4. `transcribe-audio check` は python・ffmpeg・whisper-cli・モデル・既定ディレクトリの所在と解決元を 1 行ずつ報告する．
+4. `transcribe-audio check` は python・ffmpeg・whisper-cli・モデル・既定ディレクトリの所在を 1 行ずつ報告する．
+   whisper-cli とモデルは解決元（`cli-arg` / `env` / `.env` / `default`）も併せて示す．
 5. `transcribe-audio setup` は固定タグの whisper.cpp と `ggml-large-v3.bin` を既定ディレクトリへ取得する．SHA256 を検証し，一致時のみ配置する．
 6. パスの解決順は CLI 引数，環境変数，`.env`，既定ディレクトリの順とする．
 7. 実行時依存は `pyyaml` のみとし，ffmpeg は PATH 上の存在を前提とする．
