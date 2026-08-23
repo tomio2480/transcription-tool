@@ -174,8 +174,12 @@ def test_main_returns_2_when_env_unset(
     vocab.write_text("version: 1\n", encoding="utf-8")
     monkeypatch.delenv("WHISPER_CLI_PATH", raising=False)
     monkeypatch.delenv("WHISPER_MODEL_PATH", raising=False)
-    # 既定の .env（不在は許容）のまま，環境変数が未設定の経路を試す
+    # 既定の .env（不在は許容）のまま，環境変数も未設定の経路を試す．
+    # 既定ディレクトリを tmp_path 配下へ差し替え，実体が無いため NG になる．
     monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        "transcription_tool.cli.default_data_dir", lambda: tmp_path / "data"
+    )
     code = main(
         [
             "transcribe",
@@ -187,4 +191,128 @@ def test_main_returns_2_when_env_unset(
             str(tmp_path / "out"),
         ]
     )
+    assert code == 2
+
+
+def test_main_transcribe_reports_source_and_setup_hint_when_default_missing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    audio = tmp_path / "a.m4a"
+    audio.write_bytes(b"x")
+    vocab = tmp_path / "vocabulary.yml"
+    vocab.write_text("version: 1\n", encoding="utf-8")
+    monkeypatch.delenv("WHISPER_CLI_PATH", raising=False)
+    monkeypatch.delenv("WHISPER_MODEL_PATH", raising=False)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        "transcription_tool.cli.default_data_dir", lambda: tmp_path / "data"
+    )
+
+    code = main(
+        [
+            "transcribe",
+            "--audio",
+            str(audio),
+            "--vocabulary",
+            str(vocab),
+            "--output-dir",
+            str(tmp_path / "out"),
+        ]
+    )
+    assert code == 2
+    err = capsys.readouterr().err
+    assert "source=default" in err
+    assert "setup" in err
+
+
+def test_main_transcribe_uses_cli_arg_paths(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    audio = tmp_path / "a.m4a"
+    audio.write_bytes(b"x")
+    vocab = tmp_path / "vocabulary.yml"
+    vocab.write_text("version: 1\n", encoding="utf-8")
+    cli = tmp_path / "whisper-cli.exe"
+    cli.write_bytes(b"x")
+    model = tmp_path / "m.bin"
+    model.write_bytes(b"x")
+    monkeypatch.delenv("WHISPER_CLI_PATH", raising=False)
+    monkeypatch.delenv("WHISPER_MODEL_PATH", raising=False)
+
+    def fake_run(cmd, **kwargs):
+        if Path(str(cmd[0])).name.startswith("whisper"):
+            of_index = cmd.index("-of")
+            Path(str(cmd[of_index + 1]) + ".txt").write_text("本文", encoding="utf-8")
+
+        class _Result:
+            returncode = 0
+
+        return _Result()
+
+    monkeypatch.setattr("transcription_tool.transcribe.subprocess.run", fake_run)
+
+    code = main(
+        [
+            "transcribe",
+            "--audio",
+            str(audio),
+            "--vocabulary",
+            str(vocab),
+            "--output-dir",
+            str(tmp_path / "out"),
+            "--whisper-cli",
+            str(cli),
+            "--model",
+            str(model),
+        ]
+    )
+    assert code == 0
+
+
+# ---------- check サブコマンド ----------
+
+
+def test_main_check_returns_0_when_all_ok(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    cli = tmp_path / "whisper-cli.exe"
+    cli.write_bytes(b"x")
+    model = tmp_path / "m.bin"
+    model.write_bytes(b"x")
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    monkeypatch.setattr("transcription_tool.cli.default_data_dir", lambda: data_dir)
+    monkeypatch.setattr("transcription_tool.check.shutil.which", lambda name: "/usr/bin/ffmpeg")
+
+    code = main(["check", "--whisper-cli", str(cli), "--model", str(model)])
+    out = capsys.readouterr().out
+    assert code == 0
+    assert "[OK] python" in out
+    assert "[OK] ffmpeg: /usr/bin/ffmpeg" in out
+    assert "[OK] whisper-cli" in out
+    assert "[OK] model" in out
+    assert "[OK] data-dir" in out
+
+
+def test_main_check_returns_1_when_any_ng(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.delenv("WHISPER_CLI_PATH", raising=False)
+    monkeypatch.delenv("WHISPER_MODEL_PATH", raising=False)
+    monkeypatch.setattr(
+        "transcription_tool.cli.default_data_dir", lambda: tmp_path / "data"
+    )
+    monkeypatch.setattr("transcription_tool.check.shutil.which", lambda name: None)
+
+    code = main(["check"])
+    out = capsys.readouterr().out
+    assert code == 1
+    assert "[NG] ffmpeg: PATH 上に見つかりません" in out
+    assert "source=default" in out
+
+
+def test_main_check_returns_2_when_explicit_env_file_missing(
+    tmp_path: Path,
+) -> None:
+    code = main(["check", "--env-file", str(tmp_path / "typo.env")])
     assert code == 2
