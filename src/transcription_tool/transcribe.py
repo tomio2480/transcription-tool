@@ -163,7 +163,9 @@ def transcribe(
     """
     output_dir.mkdir(parents=True, exist_ok=True)
     stem = audio_path.stem
-    wav_path = output_dir / f"{stem}.wav"
+    # 入力音声が出力先ディレクトリに置かれている場合，`<stem>.wav` のままだと
+    # ffmpeg の入出力が同一パスになってしまう．`.16k.wav` として区別する．
+    wav_path = output_dir / f"{stem}.16k.wav"
     output_stem = output_dir / stem
     txt_path = output_dir / f"{stem}.txt"
 

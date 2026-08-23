@@ -28,6 +28,8 @@ USER_AGENT = "transcription-tool-setup/1.0"
 # ダウンロード進捗を表示する間隔．3 GB のモデルで無反応にならないための目安．
 PROGRESS_STEP_BYTES = 64 * 1024 * 1024
 BYTES_PER_MIB = 1024 * 1024
+# 展開済みバリアントを記録するマーカーファイル名．バリアント切替時の再展開判定に使う．
+VARIANT_MARKER_NAME = ".variant"
 
 
 def _default_opener(url: str) -> IO[bytes]:
@@ -189,11 +191,25 @@ def _fetch_binary(
         print(f"スキップ（取得済み）: {zip_dest}", file=out)
 
     cli_path = data_dir / DEFAULT_CLI_RELATIVE_WINDOWS
-    # zip がキャッシュ済み（fetched=False）でも展開が未完了なら，
-    # 展開だけをやり直す．そうしないと展開スキップが永続してしまう．
-    if fetched or not cli_path.exists():
+    variant_marker = bin_dir / VARIANT_MARKER_NAME
+    previous_variant = (
+        variant_marker.read_text(encoding="utf-8").strip() if variant_marker.exists() else None
+    )
+    variant_switched = previous_variant != resolved_variant
+
+    # zip がキャッシュ済み（fetched=False）でも次のいずれかなら展開をやり直す．
+    # - whisper-cli が未展開（展開スキップが永続してしまう）
+    # - `.variant` が今回のバリアントと異なる（バリアント切替の取りこぼし）
+    if fetched or not cli_path.exists() or variant_switched:
         extract_zip(zip_dest, bin_dir)
-        print(f"{'展開' if fetched else '再展開'}: {zip_dest} -> {bin_dir}", file=out)
+        if fetched:
+            reason = "展開"
+        elif variant_switched:
+            reason = "再展開（バリアント切替）"
+        else:
+            reason = "再展開"
+        print(f"{reason}: {zip_dest} -> {bin_dir}", file=out)
+        variant_marker.write_text(resolved_variant, encoding="utf-8")
 
     if not cli_path.exists():
         raise RuntimeError(f"展開後に whisper-cli が見つかりません: {cli_path}")

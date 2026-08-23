@@ -282,6 +282,95 @@ def test_run_setup_reextracts_when_cached_zip_not_yet_extracted(
     assert "再展開" in out
 
 
+def test_run_setup_reextracts_when_variant_switches(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # cuda で展開済みの状態から cpu へ切り替えると，zip がキャッシュ済みでも
+    # 再展開が必要になる（`.variant` にバリアント名を記録し判定材料にする）
+    cuda_zip_bytes = _zip_bytes({"Release/whisper-cli.exe": b"cuda-binary"})
+    cpu_zip_bytes = _zip_bytes({"Release/whisper-cli.exe": b"cpu-binary"})
+    cuda_asset = _asset_for(cuda_zip_bytes, name="whisper-bin-cuda.zip", url="http://example/cuda.zip")
+    cpu_asset = _asset_for(cpu_zip_bytes, name="whisper-bin-cpu.zip", url="http://example/cpu.zip")
+    model_bytes = b"model-bytes"
+    model_asset = _asset_for(model_bytes, name="ggml-large-v3.bin", url="http://example/model.bin")
+    monkeypatch.setattr(
+        "transcription_tool.fetch.BINARY_ASSETS", {"cpu": cpu_asset, "cuda": cuda_asset}
+    )
+    monkeypatch.setattr("transcription_tool.fetch.MODEL_ASSET", model_asset)
+
+    data_dir = tmp_path / "data"
+    bin_dir = data_dir / "bin"
+    models_dir = data_dir / "models"
+    bin_dir.mkdir(parents=True)
+    models_dir.mkdir(parents=True)
+    # cuda で展開済みの状態を再現する
+    (bin_dir / cuda_asset.name).write_bytes(cuda_zip_bytes)
+    (bin_dir / "Release").mkdir()
+    (bin_dir / "Release" / "whisper-cli.exe").write_bytes(b"cuda-binary")
+    (bin_dir / ".variant").write_text("cuda", encoding="utf-8")
+    # cpu 用 zip はキャッシュ済み（すでにダウンロード済み）
+    (bin_dir / cpu_asset.name).write_bytes(cpu_zip_bytes)
+    (models_dir / model_asset.name).write_bytes(model_bytes)
+
+    def opener(url: str) -> io.BytesIO:
+        raise AssertionError("キャッシュ済みのため opener は呼ばれてはならない")
+
+    code = run_setup(
+        data_dir=data_dir,
+        variant="cpu",
+        force=False,
+        platform="win32",
+        which=lambda name: None,
+        opener=opener,
+    )
+
+    assert code == 0
+    assert (bin_dir / "Release" / "whisper-cli.exe").read_bytes() == b"cpu-binary"
+    assert (bin_dir / ".variant").read_text(encoding="utf-8") == "cpu"
+    out = capsys.readouterr().out
+    assert "再展開（バリアント切替）" in out
+
+
+def test_run_setup_skips_reextraction_when_variant_matches_marker(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # `.variant` が今回のバリアントと一致していれば再展開しない
+    zip_bytes = _zip_bytes({"Release/whisper-cli.exe": b"binary"})
+    binary_asset = _asset_for(zip_bytes, name="whisper-bin-x64.zip", url="http://example/bin.zip")
+    model_bytes = b"model-bytes"
+    model_asset = _asset_for(model_bytes, name="ggml-large-v3.bin", url="http://example/model.bin")
+    monkeypatch.setattr(
+        "transcription_tool.fetch.BINARY_ASSETS", {"cpu": binary_asset, "cuda": binary_asset}
+    )
+    monkeypatch.setattr("transcription_tool.fetch.MODEL_ASSET", model_asset)
+
+    data_dir = tmp_path / "data"
+    bin_dir = data_dir / "bin"
+    models_dir = data_dir / "models"
+    (bin_dir / "Release").mkdir(parents=True)
+    models_dir.mkdir(parents=True)
+    (bin_dir / binary_asset.name).write_bytes(zip_bytes)
+    (bin_dir / "Release" / "whisper-cli.exe").write_bytes(b"binary")
+    (bin_dir / ".variant").write_text("cpu", encoding="utf-8")
+    (models_dir / model_asset.name).write_bytes(model_bytes)
+
+    def opener(url: str) -> io.BytesIO:
+        raise AssertionError("取得済みのため opener は呼ばれてはならない")
+
+    code = run_setup(
+        data_dir=data_dir,
+        variant="cpu",
+        force=False,
+        platform="win32",
+        which=lambda name: None,
+        opener=opener,
+    )
+
+    assert code == 0
+    out = capsys.readouterr().out
+    assert "再展開" not in out
+
+
 def test_run_setup_non_windows_skips_binary_and_fetches_model_only(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:

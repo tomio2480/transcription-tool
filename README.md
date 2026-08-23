@@ -74,7 +74,7 @@ transcribe-audio transcribe --audio path/to/recording.m4a --output-dir .scratch/
 終了コードは 0 が成功，1 が実行失敗，2 が入力または環境の不備です．
 標準出力は生成した txt のパス 1 行だけです．whisper.cpp の出力は失敗時のみ標準エラーへ転送します．
 
-他のリポジトリのスクリプトから呼ぶときは，PATH 上の `transcribe-audio` を subprocess で起動し，
+他のリポジトリのスクリプトからは，PATH 上の `transcribe-audio` を subprocess で起動します．
 標準出力の 1 行を txt のパスとして受け取ります．
 
 ```python

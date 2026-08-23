@@ -153,6 +153,24 @@ def test_run_checks_data_dir_ok_when_exists(tmp_path: Path) -> None:
     assert item.detail == str(data_dir)
 
 
+def test_run_checks_data_dir_ng_when_path_is_file(tmp_path: Path) -> None:
+    # exists() だけではディレクトリでなくても OK 扱いになってしまうため is_dir() で判定する
+    data_dir = tmp_path / "data"
+    data_dir.write_bytes(b"not a directory")
+    items = run_checks(
+        cli_arg_cli=None,
+        cli_arg_model=None,
+        environ={},
+        env_file_vars={},
+        data_dir=data_dir,
+        which=_fake_which_missing,
+        platform="linux",
+    )
+    item = next(item for item in items if item.name == "data-dir")
+    assert item.ok is False
+    assert "ディレクトリではありません" in item.detail
+
+
 def test_run_checks_data_dir_ng_when_absent(tmp_path: Path) -> None:
     data_dir = tmp_path / "data"
     items = run_checks(

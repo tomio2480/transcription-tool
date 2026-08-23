@@ -198,9 +198,59 @@ def test_transcribe_runs_ffmpeg_then_whisper_and_returns_txt(
     assert len(calls) == 2
     assert calls[0][0] == "ffmpeg"
     assert Path(calls[1][0]).name == "whisper-cli.exe"
-    # 中間 WAV は出力ディレクトリ配下に作られる
+    # 中間 WAV は出力ディレクトリ配下に作られる（入力と衝突しないよう `.16k.wav`）
     wav_arg = calls[0][-1]
-    assert wav_arg == str(out_dir / "2026-04-30-旭川.wav")
+    assert wav_arg == str(out_dir / "2026-04-30-旭川.16k.wav")
+
+
+def test_transcribe_uses_distinct_wav_path_when_input_audio_is_in_output_dir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # 入力 WAV が出力先ディレクトリに置かれていると，中間 WAV 名が同じでは
+    # ffmpeg の入出力が同一パスになってしまう．中間 WAV 名を変えて区別する．
+    out_dir = tmp_path / "scratch"
+    out_dir.mkdir()
+    audio = out_dir / "a.wav"
+    audio.write_bytes(b"fake-audio")
+    vocab = tmp_path / "vocabulary.yml"
+    vocab.write_text("version: 1\n", encoding="utf-8")
+    cli = tmp_path / "whisper-cli.exe"
+    cli.write_bytes(b"x")
+    model = tmp_path / "m.bin"
+    model.write_bytes(b"x")
+
+    calls: list[list[str]] = []
+
+    def fake_run(cmd, **kwargs):
+        calls.append([str(c) for c in cmd])
+        if Path(str(cmd[0])).name.startswith("whisper"):
+            of_index = cmd.index("-of")
+            Path(str(cmd[of_index + 1]) + ".txt").write_text("本文", encoding="utf-8")
+
+        class _Result:
+            returncode = 0
+            stdout = ""
+            stderr = ""
+
+        return _Result()
+
+    monkeypatch.setattr("transcription_tool.transcribe.subprocess.run", fake_run)
+
+    transcribe(
+        audio_path=audio,
+        vocabulary_path=vocab,
+        output_dir=out_dir,
+        whisper_cli=cli,
+        whisper_model=model,
+        language="ja",
+    )
+
+    ffmpeg_cmd = calls[0]
+    input_arg = ffmpeg_cmd[ffmpeg_cmd.index("-i") + 1]
+    output_arg = ffmpeg_cmd[-1]
+    assert input_arg == str(audio)
+    assert output_arg != input_arg
+    assert output_arg == str(out_dir / "a.16k.wav")
 
 
 def test_transcribe_raises_when_ffmpeg_fails(

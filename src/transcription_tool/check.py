@@ -80,8 +80,14 @@ def _check_resolved_path(name: str, path: Path, source: str) -> CheckItem:
 
 
 def _check_data_dir(data_dir: Path) -> CheckItem:
-    ok = data_dir.exists()
-    detail = str(data_dir) if ok else f"{data_dir} {SETUP_HINT}"
+    # exists() だけでは通常ファイルでも OK 扱いになってしまうため is_dir() で判定する．
+    ok = data_dir.is_dir()
+    if ok:
+        detail = str(data_dir)
+    elif data_dir.exists():
+        detail = f"{data_dir} ディレクトリではありません"
+    else:
+        detail = f"{data_dir} {SETUP_HINT}"
     return CheckItem(name="data-dir", ok=ok, detail=detail)
 
 
