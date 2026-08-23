@@ -395,6 +395,29 @@ def test_run_setup_non_windows_skips_binary_and_fetches_model_only(
     assert (data_dir / "models" / model_asset.name).read_bytes() == model_bytes
 
 
+def test_run_setup_returns_1_when_data_dir_is_a_regular_file(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # data_dir が通常ファイルだと bin/models の mkdir が OSError で落ちる．
+    # traceback を出さず，原因の分かるメッセージとともに終了コード 1 を返す．
+    data_dir = tmp_path / "data"
+    data_dir.write_bytes(b"not a directory")
+
+    code = run_setup(
+        data_dir=data_dir,
+        variant="cpu",
+        force=False,
+        platform="win32",
+        which=lambda name: None,
+        opener=lambda url: io.BytesIO(b""),
+    )
+
+    assert code == 1
+    err = capsys.readouterr().err
+    assert "作成できません" in err
+    assert str(data_dir) in err
+
+
 def test_run_setup_returns_1_on_hash_mismatch(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import shutil
 import sys
 from pathlib import Path
 
@@ -157,6 +158,13 @@ def run_transcribe(args: argparse.Namespace) -> int:
                     file=sys.stderr,
                 )
             return EXIT_USAGE
+
+    if shutil.which("ffmpeg") is None:
+        print(
+            "ffmpeg が見つかりません．PATH 上に ffmpeg が存在することを確認してください．",
+            file=sys.stderr,
+        )
+        return EXIT_USAGE
 
     try:
         written = transcribe(

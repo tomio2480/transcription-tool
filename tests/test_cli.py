@@ -9,6 +9,16 @@ import pytest
 from transcription_tool.cli import build_parser, main
 
 
+@pytest.fixture(autouse=True)
+def _fake_ffmpeg_present(monkeypatch: pytest.MonkeyPatch) -> None:
+    """既定で ffmpeg が PATH 上にあることにする．
+
+    実機の ffmpeg 有無に依存させないため，`transcribe` の正常系テストは
+    ここでの固定を前提にする．ffmpeg 不在の経路は個別テストで上書きする．
+    """
+    monkeypatch.setattr("transcription_tool.cli.shutil.which", lambda name: "C:/ffmpeg.exe")
+
+
 def test_help_lists_subcommands(capsys):
     """`--help` がサブコマンド名を列挙して終了コード 0 で終わる．"""
     with pytest.raises(SystemExit) as exc:
@@ -346,6 +356,50 @@ def test_main_transcribe_without_vocabulary_returns_0(
         ]
     )
     assert code == 0
+
+
+def test_main_transcribe_returns_2_when_ffmpeg_missing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # ffmpeg が PATH に無いのは環境不備のため EXIT_USAGE（2）で終える．
+    audio = tmp_path / "a.m4a"
+    audio.write_bytes(b"x")
+    vocab = tmp_path / "vocabulary.yml"
+    vocab.write_text("version: 1\n", encoding="utf-8")
+    cli = tmp_path / "whisper-cli.exe"
+    cli.write_bytes(b"x")
+    model = tmp_path / "m.bin"
+    model.write_bytes(b"x")
+    monkeypatch.delenv("WHISPER_CLI_PATH", raising=False)
+    monkeypatch.delenv("WHISPER_MODEL_PATH", raising=False)
+    monkeypatch.setattr("transcription_tool.cli.shutil.which", lambda name: None)
+
+    run_calls: list[object] = []
+    monkeypatch.setattr(
+        "transcription_tool.transcribe.subprocess.run",
+        lambda *args, **kwargs: run_calls.append((args, kwargs)),
+    )
+
+    code = main(
+        [
+            "transcribe",
+            "--audio",
+            str(audio),
+            "--vocabulary",
+            str(vocab),
+            "--output-dir",
+            str(tmp_path / "out"),
+            "--whisper-cli",
+            str(cli),
+            "--model",
+            str(model),
+        ]
+    )
+
+    assert code == 2
+    assert run_calls == []
+    err = capsys.readouterr().err
+    assert "ffmpeg が見つかりません" in err
 
 
 def test_main_returns_1_when_output_txt_missing(

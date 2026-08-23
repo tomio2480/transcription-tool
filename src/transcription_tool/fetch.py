@@ -258,8 +258,13 @@ def run_setup(
 
     bin_dir = data_dir / "bin"
     models_dir = data_dir / "models"
-    bin_dir.mkdir(parents=True, exist_ok=True)
-    models_dir.mkdir(parents=True, exist_ok=True)
+
+    try:
+        bin_dir.mkdir(parents=True, exist_ok=True)
+        models_dir.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        print(f"既定ディレクトリを作成できません: {data_dir}: {exc}", file=sys.stderr)
+        return 1
 
     try:
         if platform == "win32":
