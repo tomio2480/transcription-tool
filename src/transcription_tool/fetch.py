@@ -185,13 +185,16 @@ def _fetch_binary(
         force=force,
         progress=_make_progress_printer(asset.name, out),
     )
-    if fetched:
-        extract_zip(zip_dest, bin_dir)
-        print(f"展開: {zip_dest} -> {bin_dir}", file=out)
-    else:
+    if not fetched:
         print(f"スキップ（取得済み）: {zip_dest}", file=out)
 
     cli_path = data_dir / DEFAULT_CLI_RELATIVE_WINDOWS
+    # zip がキャッシュ済み（fetched=False）でも展開が未完了なら，
+    # 展開だけをやり直す．そうしないと展開スキップが永続してしまう．
+    if fetched or not cli_path.exists():
+        extract_zip(zip_dest, bin_dir)
+        print(f"{'展開' if fetched else '再展開'}: {zip_dest} -> {bin_dir}", file=out)
+
     if not cli_path.exists():
         raise RuntimeError(f"展開後に whisper-cli が見つかりません: {cli_path}")
 

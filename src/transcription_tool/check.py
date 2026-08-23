@@ -71,10 +71,11 @@ def _check_ffmpeg(which: Callable[[str], str | None]) -> CheckItem:
 
 
 def _check_resolved_path(name: str, path: Path, source: str) -> CheckItem:
-    ok = path.exists()
+    # exists() だけではディレクトリでも OK 扱いになってしまうため is_file() で判定する．
+    ok = path.is_file()
     detail = f"{path} (source={source})"
     if not ok:
-        detail += f" {SETUP_HINT}"
+        detail += " ファイルではありません" if path.exists() else f" {SETUP_HINT}"
     return CheckItem(name=name, ok=ok, detail=detail)
 
 

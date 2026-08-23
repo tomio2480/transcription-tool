@@ -100,6 +100,25 @@ def test_run_checks_whisper_cli_ok_when_exists(tmp_path: Path) -> None:
     assert str(cli_path) in item.detail
 
 
+def test_run_checks_whisper_cli_ng_when_path_is_directory(tmp_path: Path) -> None:
+    # exists() だけではディレクトリでも OK 扱いになってしまうため is_file() で判定する
+    cli_path = tmp_path / "whisper-cli-dir"
+    cli_path.mkdir()
+    items = run_checks(
+        cli_arg_cli=cli_path,
+        cli_arg_model=None,
+        environ={},
+        env_file_vars={},
+        data_dir=tmp_path / "data",
+        which=_fake_which_missing,
+        platform="linux",
+    )
+    item = next(item for item in items if item.name == "whisper-cli")
+    assert item.ok is False
+    assert "ファイルではありません" in item.detail
+    assert "source=cli-arg" in item.detail
+
+
 def test_run_checks_model_ng_with_default_source_when_absent(tmp_path: Path) -> None:
     data_dir = tmp_path / "data"
     items = run_checks(

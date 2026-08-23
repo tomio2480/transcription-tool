@@ -184,6 +184,10 @@ def transcribe(
             f"ffmpeg による WAV 変換に失敗しました: {audio_path}\n{_tail_output(ffmpeg_result)}"
         )
 
+    # 前回実行の txt が残っていると，後段の存在確認が「今回生成された」ことを
+    # 証明できなくなる．whisper-cli 起動前に必ず消しておく．
+    txt_path.unlink(missing_ok=True)
+
     whisper_cmd = build_whisper_command(
         whisper_cli,
         whisper_model,

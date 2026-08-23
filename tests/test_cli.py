@@ -194,6 +194,42 @@ def test_main_returns_2_when_env_unset(
     assert code == 2
 
 
+def test_main_transcribe_returns_2_when_whisper_cli_is_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # exists() だけではディレクトリでも通ってしまうため is_file() で弾く
+    audio = tmp_path / "a.m4a"
+    audio.write_bytes(b"x")
+    vocab = tmp_path / "vocabulary.yml"
+    vocab.write_text("version: 1\n", encoding="utf-8")
+    cli_dir = tmp_path / "whisper-cli-dir"
+    cli_dir.mkdir()
+    model = tmp_path / "m.bin"
+    model.write_bytes(b"x")
+    monkeypatch.delenv("WHISPER_CLI_PATH", raising=False)
+    monkeypatch.delenv("WHISPER_MODEL_PATH", raising=False)
+
+    code = main(
+        [
+            "transcribe",
+            "--audio",
+            str(audio),
+            "--vocabulary",
+            str(vocab),
+            "--output-dir",
+            str(tmp_path / "out"),
+            "--whisper-cli",
+            str(cli_dir),
+            "--model",
+            str(model),
+        ]
+    )
+    assert code == 2
+    err = capsys.readouterr().err
+    assert "ファイルではありません" in err
+    assert "source=cli-arg" in err
+
+
 def test_main_transcribe_reports_source_and_setup_hint_when_default_missing(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:

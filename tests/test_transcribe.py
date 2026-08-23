@@ -422,6 +422,86 @@ def test_transcribe_captures_subprocess_output(
         assert kwargs.get("capture_output") is True
 
 
+def test_transcribe_raises_when_stale_txt_remains_and_whisper_writes_nothing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # 前回実行の txt が残っていると存在確認が無意味になる．
+    # whisper-cli 起動前に消しておき，「今回生成された」ことを保証する．
+    audio = tmp_path / "a.m4a"
+    audio.write_bytes(b"x")
+    vocab = tmp_path / "vocabulary.yml"
+    vocab.write_text("version: 1\n", encoding="utf-8")
+    cli = tmp_path / "whisper-cli.exe"
+    cli.write_bytes(b"x")
+    model = tmp_path / "m.bin"
+    model.write_bytes(b"x")
+    out_dir = tmp_path / "out"
+    out_dir.mkdir()
+    (out_dir / "a.txt").write_text("古い", encoding="utf-8")
+
+    def fake_run(cmd, **kwargs):
+        # whisper-cli を模していても txt は書かない（異常系）
+        class _Result:
+            returncode = 0
+            stdout = ""
+            stderr = ""
+
+        return _Result()
+
+    monkeypatch.setattr("transcription_tool.transcribe.subprocess.run", fake_run)
+
+    with pytest.raises(RuntimeError, match="出力が見つかりません"):
+        transcribe(
+            audio_path=audio,
+            vocabulary_path=vocab,
+            output_dir=out_dir,
+            whisper_cli=cli,
+            whisper_model=model,
+            language="ja",
+        )
+
+
+def test_transcribe_overwrites_stale_txt_with_fresh_output(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    audio = tmp_path / "a.m4a"
+    audio.write_bytes(b"x")
+    vocab = tmp_path / "vocabulary.yml"
+    vocab.write_text("version: 1\n", encoding="utf-8")
+    cli = tmp_path / "whisper-cli.exe"
+    cli.write_bytes(b"x")
+    model = tmp_path / "m.bin"
+    model.write_bytes(b"x")
+    out_dir = tmp_path / "out"
+    out_dir.mkdir()
+    (out_dir / "a.txt").write_text("古い", encoding="utf-8")
+
+    def fake_run(cmd, **kwargs):
+        if Path(str(cmd[0])).name.startswith("whisper"):
+            of_index = cmd.index("-of")
+            Path(str(cmd[of_index + 1]) + ".txt").write_text("新しい本文", encoding="utf-8")
+
+        class _Result:
+            returncode = 0
+            stdout = ""
+            stderr = ""
+
+        return _Result()
+
+    monkeypatch.setattr("transcription_tool.transcribe.subprocess.run", fake_run)
+
+    result = transcribe(
+        audio_path=audio,
+        vocabulary_path=vocab,
+        output_dir=out_dir,
+        whisper_cli=cli,
+        whisper_model=model,
+        language="ja",
+    )
+
+    assert result.read_text(encoding="utf-8") == "新しい本文"
+
+
 def test_transcribe_appends_stderr_tail_when_whisper_fails(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

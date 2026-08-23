@@ -142,12 +142,20 @@ def run_transcribe(args: argparse.Namespace) -> int:
         data_dir=default_data_dir(),
     )
     for label, resolved in (("whisper-cli", whisper_cli), ("モデル", whisper_model)):
-        if not resolved.path.exists():
-            print(
-                f"{label}が見つかりません: {resolved.path}"
-                f"（source={resolved.source}）．{SETUP_HINT}",
-                file=sys.stderr,
-            )
+        # exists() だけではディレクトリでも通ってしまうため is_file() で判定する．
+        if not resolved.path.is_file():
+            if resolved.path.exists():
+                print(
+                    f"{label}がファイルではありません: {resolved.path}"
+                    f"（source={resolved.source}）",
+                    file=sys.stderr,
+                )
+            else:
+                print(
+                    f"{label}が見つかりません: {resolved.path}"
+                    f"（source={resolved.source}）．{SETUP_HINT}",
+                    file=sys.stderr,
+                )
             return EXIT_USAGE
 
     try:
