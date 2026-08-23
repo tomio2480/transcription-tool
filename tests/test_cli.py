@@ -316,3 +316,56 @@ def test_main_check_returns_2_when_explicit_env_file_missing(
 ) -> None:
     code = main(["check", "--env-file", str(tmp_path / "typo.env")])
     assert code == 2
+
+
+# ---------- setup サブコマンド ----------
+
+
+def test_main_setup_calls_run_setup_with_variant_and_default_force(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_run_setup(*, data_dir: Path, variant: str | None, force: bool) -> int:
+        captured["data_dir"] = data_dir
+        captured["variant"] = variant
+        captured["force"] = force
+        return 0
+
+    monkeypatch.setattr("transcription_tool.cli.run_setup", fake_run_setup)
+    monkeypatch.setattr("transcription_tool.cli.default_data_dir", lambda: tmp_path / "data")
+
+    code = main(["setup", "--variant", "cpu"])
+
+    assert code == 0
+    assert captured == {"data_dir": tmp_path / "data", "variant": "cpu", "force": False}
+
+
+def test_main_setup_passes_force_flag(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_run_setup(*, data_dir: Path, variant: str | None, force: bool) -> int:
+        captured["variant"] = variant
+        captured["force"] = force
+        return 0
+
+    monkeypatch.setattr("transcription_tool.cli.run_setup", fake_run_setup)
+    monkeypatch.setattr("transcription_tool.cli.default_data_dir", lambda: tmp_path / "data")
+
+    code = main(["setup", "--force"])
+
+    assert code == 0
+    assert captured == {"variant": None, "force": True}
+
+
+def test_main_setup_returns_run_setup_exit_code(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("transcription_tool.cli.run_setup", lambda **kwargs: 1)
+    monkeypatch.setattr("transcription_tool.cli.default_data_dir", lambda: tmp_path / "data")
+
+    code = main(["setup"])
+
+    assert code == 1

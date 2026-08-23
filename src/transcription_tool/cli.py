@@ -16,6 +16,7 @@ from pathlib import Path
 
 from transcription_tool import __version__
 from transcription_tool.check import format_checks, run_checks
+from transcription_tool.fetch import run_setup
 from transcription_tool.paths import default_data_dir, load_env_file, resolve_whisper_paths
 from transcription_tool.transcribe import DEFAULT_LANGUAGE, transcribe
 
@@ -88,7 +89,20 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser(
         "check", help="ffmpeg・whisper-cli・モデルの所在を確認する", parents=[common]
     )
-    subparsers.add_parser("setup", help="whisper.cpp とモデルを既定ディレクトリへ取得する")
+    setup_parser = subparsers.add_parser(
+        "setup", help="whisper.cpp とモデルを既定ディレクトリへ取得する"
+    )
+    setup_parser.add_argument(
+        "--variant",
+        choices=("cuda", "cpu"),
+        default=None,
+        help="whisper.cpp バイナリのバリアント（既定: nvidia-smi の有無で自動判定）",
+    )
+    setup_parser.add_argument(
+        "--force",
+        action="store_true",
+        help="取得済みのファイルも上書きして再取得する",
+    )
     return parser
 
 
@@ -168,6 +182,11 @@ def run_check(args: argparse.Namespace) -> int:
     return EXIT_OK if all(item.ok for item in items) else EXIT_FAILURE
 
 
+def run_setup_command(args: argparse.Namespace) -> int:
+    """`setup` サブコマンドの実処理．"""
+    return run_setup(data_dir=default_data_dir(), variant=args.variant, force=args.force)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -178,7 +197,9 @@ def main(argv: list[str] | None = None) -> int:
         return run_transcribe(args)
     if args.command == "check":
         return run_check(args)
-    print(f"{args.command}: 未実装", file=sys.stderr)
+    if args.command == "setup":
+        return run_setup_command(args)
+    parser.print_usage(sys.stderr)
     return EXIT_USAGE
 
 
