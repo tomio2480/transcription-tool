@@ -269,6 +269,144 @@ def test_main_transcribe_uses_cli_arg_paths(
     assert code == 0
 
 
+def test_main_transcribe_without_vocabulary_returns_0(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # --vocabulary 省略時は辞書の存在検査をスキップし，vocabulary_path=None で通す
+    audio = tmp_path / "a.m4a"
+    audio.write_bytes(b"x")
+    cli = tmp_path / "whisper-cli.exe"
+    cli.write_bytes(b"x")
+    model = tmp_path / "m.bin"
+    model.write_bytes(b"x")
+    monkeypatch.delenv("WHISPER_CLI_PATH", raising=False)
+    monkeypatch.delenv("WHISPER_MODEL_PATH", raising=False)
+
+    def fake_run(cmd, **kwargs):
+        if Path(str(cmd[0])).name.startswith("whisper"):
+            of_index = cmd.index("-of")
+            Path(str(cmd[of_index + 1]) + ".txt").write_text("本文", encoding="utf-8")
+
+        class _Result:
+            returncode = 0
+            stdout = ""
+            stderr = ""
+
+        return _Result()
+
+    monkeypatch.setattr("transcription_tool.transcribe.subprocess.run", fake_run)
+
+    code = main(
+        [
+            "transcribe",
+            "--audio",
+            str(audio),
+            "--output-dir",
+            str(tmp_path / "out"),
+            "--whisper-cli",
+            str(cli),
+            "--model",
+            str(model),
+        ]
+    )
+    assert code == 0
+
+
+def test_main_returns_1_when_output_txt_missing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # whisper-cli が終了コード 0 でも txt を書かない異常系を模す
+    audio = tmp_path / "a.m4a"
+    audio.write_bytes(b"x")
+    vocab = tmp_path / "vocabulary.yml"
+    vocab.write_text("version: 1\n", encoding="utf-8")
+    cli = tmp_path / "whisper-cli.exe"
+    cli.write_bytes(b"x")
+    model = tmp_path / "m.bin"
+    model.write_bytes(b"x")
+    monkeypatch.delenv("WHISPER_CLI_PATH", raising=False)
+    monkeypatch.delenv("WHISPER_MODEL_PATH", raising=False)
+
+    def fake_run(cmd, **kwargs):
+        class _Result:
+            returncode = 0
+            stdout = ""
+            stderr = ""
+
+        return _Result()
+
+    monkeypatch.setattr("transcription_tool.transcribe.subprocess.run", fake_run)
+
+    code = main(
+        [
+            "transcribe",
+            "--audio",
+            str(audio),
+            "--vocabulary",
+            str(vocab),
+            "--output-dir",
+            str(tmp_path / "out"),
+            "--whisper-cli",
+            str(cli),
+            "--model",
+            str(model),
+        ]
+    )
+    assert code == 1
+
+
+def test_main_transcribe_stdout_is_only_txt_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # whisper-cli のセグメント出力が混ざらず，txt パス 1 行だけを stdout へ出す
+    audio = tmp_path / "a.m4a"
+    audio.write_bytes(b"x")
+    vocab = tmp_path / "vocabulary.yml"
+    vocab.write_text("version: 1\n", encoding="utf-8")
+    cli = tmp_path / "whisper-cli.exe"
+    cli.write_bytes(b"x")
+    model = tmp_path / "m.bin"
+    model.write_bytes(b"x")
+    monkeypatch.delenv("WHISPER_CLI_PATH", raising=False)
+    monkeypatch.delenv("WHISPER_MODEL_PATH", raising=False)
+    out_dir = tmp_path / "out"
+    expected_txt = out_dir / "a.txt"
+
+    def fake_run(cmd, **kwargs):
+        if Path(str(cmd[0])).name.startswith("whisper"):
+            of_index = cmd.index("-of")
+            Path(str(cmd[of_index + 1]) + ".txt").write_text(
+                "[00:00:00.000 --> 00:00:01.000] 個人情報を含む本文", encoding="utf-8"
+            )
+
+        class _Result:
+            returncode = 0
+            stdout = ""
+            stderr = ""
+
+        return _Result()
+
+    monkeypatch.setattr("transcription_tool.transcribe.subprocess.run", fake_run)
+
+    code = main(
+        [
+            "transcribe",
+            "--audio",
+            str(audio),
+            "--vocabulary",
+            str(vocab),
+            "--output-dir",
+            str(out_dir),
+            "--whisper-cli",
+            str(cli),
+            "--model",
+            str(model),
+        ]
+    )
+    assert code == 0
+    assert capsys.readouterr().out.strip() == str(expected_txt)
+
+
 # ---------- check サブコマンド ----------
 
 

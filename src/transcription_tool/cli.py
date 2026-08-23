@@ -71,8 +71,9 @@ def build_parser() -> argparse.ArgumentParser:
     transcribe_parser.add_argument(
         "--vocabulary",
         type=Path,
-        required=True,
-        help="canonical 語を --prompt へ注入する vocabulary.yml のパス",
+        required=False,
+        default=None,
+        help="canonical 語を --prompt へ注入する vocabulary.yml のパス（省略可）",
     )
     transcribe_parser.add_argument(
         "--output-dir",
@@ -122,7 +123,9 @@ def run_transcribe(args: argparse.Namespace) -> int:
     if not args.audio.exists() or not args.audio.is_file():
         print(f"音声ファイルが見つかりません: {args.audio}", file=sys.stderr)
         return EXIT_USAGE
-    if not args.vocabulary.exists() or not args.vocabulary.is_file():
+    if args.vocabulary is not None and (
+        not args.vocabulary.exists() or not args.vocabulary.is_file()
+    ):
         print(f"辞書ファイルが見つかりません: {args.vocabulary}", file=sys.stderr)
         return EXIT_USAGE
 

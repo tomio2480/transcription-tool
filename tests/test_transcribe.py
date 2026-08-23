@@ -218,6 +218,8 @@ def test_transcribe_raises_when_ffmpeg_fails(
     def fake_run(cmd, **kwargs):
         class _Result:
             returncode = 1
+            stdout = ""
+            stderr = ""
 
         return _Result()
 
@@ -289,6 +291,168 @@ def test_transcribe_raises_friendly_error_when_whisper_not_installed(
     monkeypatch.setattr("transcription_tool.transcribe.subprocess.run", fake_run)
 
     with pytest.raises(RuntimeError, match="whisper-cli が見つかりません"):
+        transcribe(
+            audio_path=audio,
+            vocabulary_path=vocab,
+            output_dir=tmp_path / "out",
+            whisper_cli=cli,
+            whisper_model=model,
+            language="ja",
+        )
+
+
+def test_transcribe_without_vocabulary_omits_prompt(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # 辞書省略時（vocabulary_path=None）は存在検査をスキップし --prompt を付けない
+    audio = tmp_path / "a.m4a"
+    audio.write_bytes(b"x")
+    out_dir = tmp_path / "scratch"
+    cli = tmp_path / "whisper-cli.exe"
+    cli.write_bytes(b"x")
+    model = tmp_path / "m.bin"
+    model.write_bytes(b"x")
+
+    calls: list[list[str]] = []
+
+    def fake_run(cmd, **kwargs):
+        calls.append([str(c) for c in cmd])
+        if Path(str(cmd[0])).name.startswith("whisper"):
+            of_index = cmd.index("-of")
+            Path(str(cmd[of_index + 1]) + ".txt").write_text("本文", encoding="utf-8")
+
+        class _Result:
+            returncode = 0
+            stdout = ""
+            stderr = ""
+
+        return _Result()
+
+    monkeypatch.setattr("transcription_tool.transcribe.subprocess.run", fake_run)
+
+    result = transcribe(
+        audio_path=audio,
+        vocabulary_path=None,
+        output_dir=out_dir,
+        whisper_cli=cli,
+        whisper_model=model,
+        language="ja",
+    )
+
+    assert result == out_dir / "a.txt"
+    whisper_cmd = calls[1]
+    assert "--prompt" not in whisper_cmd
+
+
+def test_transcribe_raises_when_output_txt_missing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # whisper.cpp が終了コード 0 を返しても txt が無ければ失敗として扱う
+    audio = tmp_path / "a.m4a"
+    audio.write_bytes(b"x")
+    vocab = tmp_path / "vocabulary.yml"
+    vocab.write_text("version: 1\n", encoding="utf-8")
+    cli = tmp_path / "whisper-cli.exe"
+    cli.write_bytes(b"x")
+    model = tmp_path / "m.bin"
+    model.write_bytes(b"x")
+
+    def fake_run(cmd, **kwargs):
+        class _Result:
+            returncode = 0
+            stdout = ""
+            stderr = ""
+
+        return _Result()
+
+    monkeypatch.setattr("transcription_tool.transcribe.subprocess.run", fake_run)
+
+    with pytest.raises(RuntimeError, match="出力が見つかりません"):
+        transcribe(
+            audio_path=audio,
+            vocabulary_path=vocab,
+            output_dir=tmp_path / "out",
+            whisper_cli=cli,
+            whisper_model=model,
+            language="ja",
+        )
+
+
+def test_transcribe_captures_subprocess_output(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # セグメント出力（個人情報を含みうる）を stdout へ垂れ流さないよう捕捉する
+    audio = tmp_path / "a.m4a"
+    audio.write_bytes(b"x")
+    vocab = tmp_path / "vocabulary.yml"
+    vocab.write_text("version: 1\n", encoding="utf-8")
+    cli = tmp_path / "whisper-cli.exe"
+    cli.write_bytes(b"x")
+    model = tmp_path / "m.bin"
+    model.write_bytes(b"x")
+
+    captured_kwargs: list[dict[str, object]] = []
+
+    def fake_run(cmd, **kwargs):
+        captured_kwargs.append(kwargs)
+        if Path(str(cmd[0])).name.startswith("whisper"):
+            of_index = cmd.index("-of")
+            Path(str(cmd[of_index + 1]) + ".txt").write_text("本文", encoding="utf-8")
+
+        class _Result:
+            returncode = 0
+            stdout = ""
+            stderr = ""
+
+        return _Result()
+
+    monkeypatch.setattr("transcription_tool.transcribe.subprocess.run", fake_run)
+
+    transcribe(
+        audio_path=audio,
+        vocabulary_path=vocab,
+        output_dir=tmp_path / "out",
+        whisper_cli=cli,
+        whisper_model=model,
+        language="ja",
+    )
+
+    assert len(captured_kwargs) == 2
+    for kwargs in captured_kwargs:
+        assert kwargs.get("capture_output") is True
+
+
+def test_transcribe_appends_stderr_tail_when_whisper_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # 失敗時は原因が追えるよう stderr 末尾をエラーメッセージへ添える
+    audio = tmp_path / "a.m4a"
+    audio.write_bytes(b"x")
+    vocab = tmp_path / "vocabulary.yml"
+    vocab.write_text("version: 1\n", encoding="utf-8")
+    cli = tmp_path / "whisper-cli.exe"
+    cli.write_bytes(b"x")
+    model = tmp_path / "m.bin"
+    model.write_bytes(b"x")
+
+    def fake_run(cmd, **kwargs):
+        class _FfmpegResult:
+            returncode = 0
+            stdout = ""
+            stderr = ""
+
+        class _WhisperResult:
+            returncode = 1
+            stdout = ""
+            stderr = "error: failed to load model\nabort"
+
+        if Path(str(cmd[0])).name.startswith("whisper"):
+            return _WhisperResult()
+        return _FfmpegResult()
+
+    monkeypatch.setattr("transcription_tool.transcribe.subprocess.run", fake_run)
+
+    with pytest.raises(RuntimeError, match="failed to load model"):
         transcribe(
             audio_path=audio,
             vocabulary_path=vocab,

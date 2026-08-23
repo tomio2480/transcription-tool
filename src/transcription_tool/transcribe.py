@@ -25,6 +25,8 @@ import yaml
 VOCABULARY_CATEGORIES = ("places", "organizations", "technical_terms")
 PROMPT_SEPARATOR = "、"
 DEFAULT_LANGUAGE = "ja"
+# 失敗時にエラーメッセージへ添える stderr／stdout の末尾行数
+SUBPROCESS_OUTPUT_TAIL_LINES = 20
 
 
 # ---------- prompt ----------
@@ -132,33 +134,55 @@ def build_whisper_command(
 # ---------- orchestration ----------
 
 
+def _tail_output(result: subprocess.CompletedProcess[str]) -> str:
+    """失敗した `subprocess.run` 結果から，原因追跡用の末尾出力を返す．
+
+    stderr を優先し，空なら stdout を使う．末尾
+    `SUBPROCESS_OUTPUT_TAIL_LINES` 行に切り詰める．
+    """
+    text = result.stderr or result.stdout or ""
+    lines = text.splitlines()
+    return "\n".join(lines[-SUBPROCESS_OUTPUT_TAIL_LINES:])
+
+
 def transcribe(
     *,
     audio_path: Path,
-    vocabulary_path: Path,
+    vocabulary_path: Path | None,
     output_dir: Path,
     whisper_cli: Path,
     whisper_model: Path,
     language: str = DEFAULT_LANGUAGE,
 ) -> Path:
-    """音声を WAV へ変換し `whisper.cpp` で文字起こしして txt パスを返す．"""
+    """音声を WAV へ変換し `whisper.cpp` で文字起こしして txt パスを返す．
+
+    `vocabulary_path` が `None` の場合は辞書を使わず，`--prompt` を付けない．
+    文字起こし本文（whisper.cpp のセグメント出力）は個人情報を含みうるため，
+    成功時は標準出力へ転送しない．失敗時のみ stderr／stdout の末尾を
+    エラーメッセージへ添えて原因追跡を助ける．
+    """
     output_dir.mkdir(parents=True, exist_ok=True)
     stem = audio_path.stem
     wav_path = output_dir / f"{stem}.wav"
     output_stem = output_dir / stem
+    txt_path = output_dir / f"{stem}.txt"
 
     # 辞書の読み込みは高コストな変換の前に行い，不正なら fail fast する．
-    prompt = load_prompt_words(vocabulary_path)
+    prompt = "" if vocabulary_path is None else load_prompt_words(vocabulary_path)
 
     ffmpeg_cmd = build_ffmpeg_command(audio_path, wav_path)
     try:
-        ffmpeg_result = subprocess.run(ffmpeg_cmd)
+        ffmpeg_result = subprocess.run(
+            ffmpeg_cmd, capture_output=True, text=True, encoding="utf-8", errors="replace"
+        )
     except FileNotFoundError as exc:
         raise RuntimeError(
             "ffmpeg が見つかりません．PATH 上に ffmpeg が存在することを確認してください．"
         ) from exc
     if ffmpeg_result.returncode != 0:
-        raise RuntimeError(f"ffmpeg による WAV 変換に失敗しました: {audio_path}")
+        raise RuntimeError(
+            f"ffmpeg による WAV 変換に失敗しました: {audio_path}\n{_tail_output(ffmpeg_result)}"
+        )
 
     whisper_cmd = build_whisper_command(
         whisper_cli,
@@ -169,12 +193,19 @@ def transcribe(
         language=language,
     )
     try:
-        whisper_result = subprocess.run(whisper_cmd)
+        whisper_result = subprocess.run(
+            whisper_cmd, capture_output=True, text=True, encoding="utf-8", errors="replace"
+        )
     except FileNotFoundError as exc:
         raise RuntimeError(
             f"whisper-cli が見つかりません．パスを確認してください: {whisper_cli}"
         ) from exc
     if whisper_result.returncode != 0:
-        raise RuntimeError(f"whisper.cpp による文字起こしに失敗しました: {audio_path}")
+        raise RuntimeError(
+            f"whisper.cpp による文字起こしに失敗しました: {audio_path}\n"
+            f"{_tail_output(whisper_result)}"
+        )
+    if not txt_path.exists():
+        raise RuntimeError(f"whisper.cpp は正常終了しましたが出力が見つかりません: {txt_path}")
 
-    return output_dir / f"{stem}.txt"
+    return txt_path
