@@ -72,6 +72,20 @@ transcribe-audio transcribe --audio path/to/recording.m4a --output-dir .scratch/
 出力先には中間 WAV も残ります．Git 管理外のディレクトリを指定してください．
 
 終了コードは 0 が成功，1 が実行失敗，2 が入力または環境の不備です．
+標準出力は生成した txt のパス 1 行だけです．whisper.cpp の出力は失敗時のみ標準エラーへ転送します．
+
+他のリポジトリのスクリプトからは，PATH 上の `transcribe-audio` を subprocess で起動します．
+標準出力の 1 行を txt のパスとして受け取ります．
+
+```python
+import subprocess
+
+result = subprocess.run(
+    ["transcribe-audio", "transcribe", "--audio", audio, "--output-dir", out_dir],
+    capture_output=True, text=True, check=True,
+)
+txt_path = result.stdout.strip()
+```
 
 ## ⚙️ パスの指定方法
 
