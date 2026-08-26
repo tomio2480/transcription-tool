@@ -35,7 +35,7 @@
 
 ## 📖 用語集（ユビキタス言語）
 
-表 1. 本ツールで共有する用語
+表 1 本ツールで共有する用語．
 
 | 用語 | 意味 |
 |---|---|
@@ -52,7 +52,8 @@
 
 ### 機能要件
 
-1. `transcribe-audio transcribe` は録音を受け取り，`<output-dir>/<stem>.txt` を生成してそのパスを stdout に 1 行出力する．
+1. `transcribe-audio transcribe` は録音を受け取り，`<output-dir>/<stem>.txt` を生成する．
+   生成したパスを stdout に 1 行出力する．
 2. 中間 WAV は 16 kHz・モノラル・`pcm_s16le` とし，whisper.cpp は `-mc 0`・`-otxt`・`-np` で起動する．
 3. 辞書は任意入力とする．与えられたときのみ canonical 語を初期プロンプトへ注入する．
 4. `transcribe-audio check` は python・ffmpeg・whisper-cli・モデル・既定ディレクトリの所在を 1 行ずつ報告する．
@@ -63,10 +64,12 @@
 
 ### 受け入れ条件
 
-- `pipx install git+https://github.com/tomio2480/transcription-tool` 後に `transcribe-audio --help` が表示される．
+- `pipx install git+https://github.com/tomio2480/transcription-tool` でインストールできる．
+  インストール後に `transcribe-audio --help` が表示される．
 - 環境変数を設定せず `setup` → `check` → `transcribe` の順で実行し，txt が得られる．
 - 環境変数 `WHISPER_CLI_PATH` / `WHISPER_MODEL_PATH` を設定すると既定ディレクトリより優先される．
-- whisper-cli・モデル・ffmpeg のいずれかが無いとき，`check` と `transcribe` は欠けているものを名指しして終了コード非 0 で止まる．
+- whisper-cli・モデル・ffmpeg のいずれかが無いとき，`check` と `transcribe` は終了コード非 0 で止まる．
+  エラーでは欠けているものを名指しする．
 - whisper.cpp が終了コード 0 を返しても txt が存在しなければ失敗として扱う．
 - `setup` はダウンロード済みのファイルを再取得しない．`--force` で上書きする．SHA256 不一致は配置せず終了コード非 0 とする．
 - 終了コードは 0 成功，1 実行失敗，2 入力または環境の不備とする．
