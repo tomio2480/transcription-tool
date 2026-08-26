@@ -15,7 +15,7 @@
 
 ## 🎯 背景と要求（why）
 
-### 切り出し前に解決したかった課題（2026-08-23）
+### 切り出し前に解決したかった課題
 
 - 文字起こしの実体が `blog-pipeline/scripts/transcribe_audio.py` に閉じていた．
   `task-report` と `resume` は兄弟ディレクトリと他リポジトリの venv を前提に借用しており，
