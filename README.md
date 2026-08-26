@@ -16,6 +16,7 @@
 - 🎙️ 文字起こし
 - ⚙️ パスの指定方法
 - 🧪 開発
+- 🧩 第三者ソフトウェア
 - 📄 ライセンス
 
 ## 🧭 仕組み
@@ -35,8 +36,6 @@ Python 3.11 以上と ffmpeg（PATH 上）が必要です．
 pipx install git+https://github.com/tomio2480/transcription-tool
 ```
 
-本リポジトリは Private のため，ローカルの Git 認証（credential manager 等）が通る環境で実行してください．
-
 ## 🧰 バイナリとモデルの取得
 
 whisper.cpp のバイナリとモデル（計約 3.6 GB）はユーザー領域へ 1 度だけ配置します．
@@ -45,10 +44,15 @@ whisper.cpp のバイナリとモデル（計約 3.6 GB）はユーザー領域�
 transcribe-audio setup
 ```
 
-配置先は Windows では `%LOCALAPPDATA%\transcription-tool\`，
-それ以外では `$XDG_DATA_HOME/transcription-tool`（未設定時は `~/.local/share/transcription-tool`）です．
+Windows の配置先は `%LOCALAPPDATA%\transcription-tool\` です．
+その他の OS では `$XDG_DATA_HOME/transcription-tool` に配置します．
+未設定時は `~/.local/share/transcription-tool` を使います．
 取得済みのファイルは再取得しません．上書きするときは `--force` を付けます．
 GPU の有無で `cuda` / `cpu` を選びます．明示するときは `--variant cpu` のように指定します．
+
+CUDA 版の上流配布物には NVIDIA CUDA ランタイムが含まれます．
+取得と利用には NVIDIA のライセンス条件が適用されます．
+NVIDIA のソフトウェアを使わない場合は `--variant cpu` を指定してください．
 
 Windows 以外ではバイナリを配布しません．whisper.cpp をビルドし，後述の方法でパスを指定してください．
 
@@ -108,6 +112,18 @@ python -m venv .venv
 
 ユニットテストは外部バイナリ・GPU・ネットワークに依存しません．
 要求と要件は [docs/spec/requirements.md](docs/spec/requirements.md) を参照してください．
+
+## 🧩 第三者ソフトウェア
+
+本リポジトリと Python パッケージには，whisper.cpp のバイナリや
+Whisper のモデルを同梱しません．
+FFmpeg と NVIDIA CUDA ランタイムも同梱しません．
+`setup` は whisper.cpp の公式リリースと Hugging Face のモデル配布元から，
+固定したファイルを利用者の端末へ直接取得します．
+
+各ソフトウェアの出所，版，ライセンス，配布形態は
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) を参照してください．
+取得したバイナリやモデルを再配布する場合は，それぞれの条件を別途確認してください．
 
 ## 📄 ライセンス
 
