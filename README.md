@@ -110,7 +110,7 @@ Windows の配置先は `%LOCALAPPDATA%\transcription-tool\` です．
 その他の OS では `$XDG_DATA_HOME/transcription-tool` に配置します．
 未設定時は `~/.local/share/transcription-tool` を使います．
 取得済みのファイルは再取得しません．上書きするときは `--force` を付けます．
-GPU の有無で `cuda` / `cpu` を選びます．明示するときは `--variant cpu` のように指定します．
+`nvidia-smi` があれば `cuda`，無ければ `cpu` を選びます．AMD GPU は判定しません．明示するときは `--variant cpu` のように指定します．
 
 CUDA 版の上流配布物には NVIDIA CUDA ランタイムが含まれます．
 取得と利用には NVIDIA のライセンス条件が適用されます．

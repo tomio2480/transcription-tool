@@ -34,6 +34,14 @@ NVIDIA CUDA ランタイムが含まれます．これらには
 取得した上流配布物を再配布する場合は，whisper.cpp の MIT License に加えて，
 配布物に含まれる各コンポーネントの条件を確認してください．
 
+## 自前でビルドする Vulkan 版（任意）
+
+README の「🎮 AMD GPU（Vulkan）で使う」の手順では，利用者が Vulkan 版をビルドします．
+ビルドの元は whisper.cpp v1.9.2 のソースです．
+本プロジェクトは，ビルドしたバイナリを配布しません．
+ビルドに使う Vulkan SDK（LunarG 配布），CMake，Visual Studio Build Tools も同梱しません．
+各ツールの利用条件は，それぞれの配布元で確認してください．
+
 ## FFmpeg
 
 本ツールは PATH 上の `ffmpeg` コマンドを別プロセスとして呼び出します．
