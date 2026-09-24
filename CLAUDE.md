@@ -41,10 +41,11 @@
 ## ✍️ 文体
 
 - `README.md` は利用者向けの手引きのため「ですます調」で書く．
-- `docs/` と本ファイルは規律・仕様の記述のため「である調」で書く．
+- `docs/`・`AGENTS.md`・本ファイルは規律・仕様の記述のため「である調」で書く．
 
 ## 📑 参照ドキュメント
 
 - [docs/spec/requirements.md](docs/spec/requirements.md): 要求・要件・用語集
 - [README.md](README.md): 導入と使い方
+- [AGENTS.md](AGENTS.md): 利用側の AI エージェントが本ツールを呼び出すときの約束事
 - [LICENSE](LICENSE): MIT License
