@@ -1,8 +1,8 @@
 # CLAUDE.md
 
 本ファイルは `transcription-tool` リポジトリでの Claude Code の常設指示である．
-本リポジトリは録音音声の文字起こし CLI `transcribe-audio` を提供し，
-複数のリポジトリ（`task-report`・`resume`・`blog-private` 等）から共用される．
+本リポジトリは録音音声の文字起こし CLI `transcribe-audio` を提供する．
+この CLI は `task-report`・`resume`・`blog-private` 等の複数のリポジトリから共用される．
 
 ## 📚 目次
 

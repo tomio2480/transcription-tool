@@ -2,10 +2,11 @@
 
 ## 概要
 
-NVIDIA GPU を持たない端末（Ryzen 9 7940HS，Radeon 780M）で，
-Vulkan 版の whisper.cpp を自前でビルドした．
+対象は NVIDIA GPU を持たない端末（Ryzen 9 7940HS，Radeon 780M）である．
+この端末で，Vulkan 版の whisper.cpp を自前でビルドした．
 `WHISPER_CLI_PATH` で指定して使う方式を採る．
-ツールのコードと spec は変更しない．
+Vulkan 版を使うためのコードと spec の変更は無い．
+調査の過程で，異常終了時の終了コードを表示する修正（#7）も入れた．
 `setup` への `vulkan` バリアント追加は見送った．
 
 ## 目次
@@ -73,7 +74,8 @@ Vulkan 版の whisper.cpp を自前でビルドした．
   `%LOCALAPPDATA%\whisper-build` のような浅いパスへ置く．
 - **証明書**: 初回の `setup` で，Hugging Face からのモデル取得が `CERTIFICATE_VERIFY_FAILED` で失敗した．
   直後の再実行では成功した．
-  Windows のルート証明書が必要時に取得される挙動によると推測するが，確定していない．
+  原因は，Windows がルート証明書を必要な時点で取得する挙動と推測する．
+  確定はしていない．
 - **ドライバー更新と実行の競合**: 文字起こしの実行中にドライバーを更新すると，処理は異常終了した．
   このときツールのエラーには whisper-cli の終了コードが含まれず，原因の切り分けに時間を要した．
 
