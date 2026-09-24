@@ -2,7 +2,7 @@
 
 ## 概要
 
-#6 の作業中に，Markdown Lint が文書の内容と無関係に失敗した．
+PR #6 の作業中に，Markdown Lint が文書の内容と無関係に失敗した．
 原因は，古い版へ固定した中央 workflow が使う Docker イメージである．
 調べると，Dependabot も 1 か月間一度も動いていなかった．
 本書は，その経緯とエージェント運用で得た知見を記録する．
@@ -16,13 +16,13 @@
 
 ## 🧱 Markdown Lint の失敗
 
-- 本リポジトリは中央 action `tomio2480/github-workflows` の markdown-lint を v2.7.1 に固定していた．
+- 本リポジトリは中央 action `tomio2480/github-workflows` の `markdown-lint` を v2.7.1 に固定していた．
 - v2.7.1 は `reviewdog/action-markdownlint` を使う．
   その Docker イメージ（`node:20-bullseye-slim`）をジョブ開始時にビルドする．
 - ビルド中の `apt-get install` は，bullseye のセキュリティ更新パッケージで 404 となった．
   取得先は `deb.debian.org/debian-security` である．lint の実行前に必ず失敗する．
-- v2.22.2 は markdownlint-cli2 へ一本化されており，このイメージを使わない．
-  Dependabot の #11（markdown-lint）・#10（claude-review）・#9（session-url-check）で更新した．
+- v2.22.2 は `markdownlint-cli2` へ一本化されており，このイメージを使わない．
+  Dependabot の #11（`markdown-lint`）・#10（`claude-review`）・#9（`session-url-check`）で更新した．
 - v2.22.2 では textlint の指摘も集計される．
   文の長さ（80 字）と助詞の重複の指摘が #6 で 6 件出たため，言い換えて解消した．
 - Markdown Lint は `**/*.md` の変更でしか起動しない．
@@ -37,7 +37,7 @@
 - 実行状況のページ（`/network/updates`）に緑の「Enable」ボタンが出ていた．
   押すと直後に `github-actions` と `pip` の更新が走り，3 件の PR が起票された．
   同ページはログインしていないと 404 になる．
-- `dependabot.yml` を置くだけでは version updates が始まらない場合がある．
+- `dependabot.yml` を置くだけでは，version updates の開始に至らない場合もある．
   新規リポジトリでは，Actions と同じく画面での有効化を確かめる．
   2026-08-24 の notes にある Actions の有効化と同種の落とし穴である．
 - 手動で作った参照更新の PR（#8）は，Dependabot の PR と同一の変更だった．

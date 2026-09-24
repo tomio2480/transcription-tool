@@ -36,7 +36,8 @@ NVIDIA CUDA ランタイムが含まれます．これらには
 
 ## 自前でビルドする Vulkan 版（任意）
 
-README の「🎮 AMD GPU（Vulkan）で使う」の手順では，利用者が whisper.cpp v1.9.2 のソースから Vulkan 版をビルドします．
+README の「🎮 AMD GPU（Vulkan）で使う」の手順では，利用者が Vulkan 版をビルドします．
+ビルドの元は whisper.cpp v1.9.2 のソースです．
 本プロジェクトは，ビルドしたバイナリを配布しません．
 ビルドに使う Vulkan SDK（LunarG 配布），CMake，Visual Studio Build Tools も同梱しません．
 各ツールの利用条件は，それぞれの配布元で確認してください．
