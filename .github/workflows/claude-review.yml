@@ -1,7 +1,7 @@
 name: Claude Review
 
 # tomio2480/github-workflows v2 の reusable workflow を呼び出す caller workflow．
-# 参照は @<SHA> # v2 形式の SHA pin で，Dependabot が更新 PR を起票する．
+# 参照は @<SHA> # <version> 形式の SHA pin で，Dependabot が更新 PR を起票する．
 # メンション判定・権限の実体・action の SHA pin は中央側へ集約している．
 # 起動はメンション方式（PR コメントに @claude）である．
 # 事前準備: Claude GitHub App（https://github.com/apps/claude）のインストールと，
