@@ -79,6 +79,6 @@ Vulkan 版の whisper.cpp を自前でビルドした．
 
 ## 🔭 今後の論点
 
-- whisper.cpp の異常終了時に，終了コードをエラーメッセージへ含める（`transcribe.py`）．
+- whisper.cpp の異常終了時に，終了コードをエラーメッセージへ含める（`transcribe.py`）．#7 で対応した．
 - CPU 版は whisper-cli の既定の 4 スレッドで動いている．`-t` の指定で速くなる余地がある．未測定である．
 - 上流が Vulkan 版の Windows バイナリを配布し始めたら，選択肢 2 を再検討する．
