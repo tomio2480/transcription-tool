@@ -91,3 +91,7 @@
   Windows 以外をスコープ外とする判断は同日にユーザー承認済み．
 - 2026-08-26: Public 公開前のライセンス監査を完了し，リポジトリを Public 化した．
   `task-report`，`blog-pipeline`，個人化版，`resume` の移行完了も確認した．
+- 2026-09-24: AMD GPU では，Vulkan 版 whisper.cpp を自前でビルドする．
+  それを `WHISPER_CLI_PATH` で指定して使う手順を README と `AGENTS.md` に追加した．
+  要件 6 の範囲で扱えるため，要件とバリアント（`cuda` / `cpu`）は変更しない．
+  判断の経緯は `docs/notes/2026-09-24-vulkan-local-build.md` に記録した．

@@ -134,6 +134,19 @@ def build_whisper_command(
 # ---------- orchestration ----------
 
 
+def describe_returncode(returncode: int) -> str:
+    """外部コマンドの終了コードを，原因の切り分けに使える説明文へ変換する．
+
+    Windows のクラッシュ（NTSTATUS）は符号なし 32 bit の大きな値で返るため，
+    16 進を併記する．POSIX のシグナル終了は負の値で返るため，シグナル番号で示す．
+    """
+    if returncode < 0:
+        return f"シグナル {-returncode} で終了"
+    if returncode > 255:
+        return f"終了コード {returncode}（0x{returncode:08X}）"
+    return f"終了コード {returncode}"
+
+
 def _tail_output(result: subprocess.CompletedProcess[str]) -> str:
     """失敗した `subprocess.run` 結果から，原因追跡用の末尾出力を返す．
 
@@ -183,7 +196,9 @@ def transcribe(
         ) from exc
     if ffmpeg_result.returncode != 0:
         raise RuntimeError(
-            f"ffmpeg による WAV 変換に失敗しました: {audio_path}\n{_tail_output(ffmpeg_result)}"
+            "ffmpeg による WAV 変換に失敗しました"
+            f"（{describe_returncode(ffmpeg_result.returncode)}）: {audio_path}\n"
+            f"{_tail_output(ffmpeg_result)}"
         )
 
     # 前回実行の txt が残っていると，後段の存在確認が「今回生成された」ことを
@@ -208,7 +223,8 @@ def transcribe(
         ) from exc
     if whisper_result.returncode != 0:
         raise RuntimeError(
-            f"whisper.cpp による文字起こしに失敗しました: {audio_path}\n"
+            "whisper.cpp による文字起こしに失敗しました"
+            f"（{describe_returncode(whisper_result.returncode)}）: {audio_path}\n"
             f"{_tail_output(whisper_result)}"
         )
     if not txt_path.exists():

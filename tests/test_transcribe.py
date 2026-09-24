@@ -14,6 +14,7 @@ import pytest
 from transcription_tool.transcribe import (
     build_ffmpeg_command,
     build_whisper_command,
+    describe_returncode,
     load_prompt_words,
     transcribe,
 )
@@ -586,6 +587,94 @@ def test_transcribe_appends_stderr_tail_when_whisper_fails(
         transcribe(
             audio_path=audio,
             vocabulary_path=vocab,
+            output_dir=tmp_path / "out",
+            whisper_cli=cli,
+            whisper_model=model,
+            language="ja",
+        )
+
+
+# ---------- describe_returncode ----------
+
+
+@pytest.mark.parametrize(
+    ("returncode", "expected"),
+    [
+        (1, "終了コード 1"),
+        (255, "終了コード 255"),
+        # Windows のクラッシュ（NTSTATUS）は符号なし 32 bit で返るため 16 進を併記する
+        (3221226505, "終了コード 3221226505（0xC0000409）"),
+        # POSIX ではシグナルによる終了が負の値で返る
+        (-9, "シグナル 9 で終了"),
+    ],
+)
+def test_describe_returncode(returncode: int, expected: str) -> None:
+    assert describe_returncode(returncode) == expected
+
+
+def test_transcribe_includes_returncode_when_whisper_crashes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # stderr が途中で途切れても，終了コードから異常終了の種類を切り分けられるようにする
+    audio = tmp_path / "a.m4a"
+    audio.write_bytes(b"x")
+    cli = tmp_path / "whisper-cli.exe"
+    cli.write_bytes(b"x")
+    model = tmp_path / "m.bin"
+    model.write_bytes(b"x")
+
+    def fake_run(cmd, **kwargs):
+        class _FfmpegResult:
+            returncode = 0
+            stdout = ""
+            stderr = ""
+
+        class _WhisperResult:
+            returncode = 3221226505
+            stdout = ""
+            stderr = "read_audio_data: trying to decode with miniaudio"
+
+        if Path(str(cmd[0])).name.startswith("whisper"):
+            return _WhisperResult()
+        return _FfmpegResult()
+
+    monkeypatch.setattr("transcription_tool.transcribe.subprocess.run", fake_run)
+
+    with pytest.raises(RuntimeError, match=r"終了コード 3221226505（0xC0000409）"):
+        transcribe(
+            audio_path=audio,
+            vocabulary_path=None,
+            output_dir=tmp_path / "out",
+            whisper_cli=cli,
+            whisper_model=model,
+            language="ja",
+        )
+
+
+def test_transcribe_includes_returncode_when_ffmpeg_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    audio = tmp_path / "a.m4a"
+    audio.write_bytes(b"x")
+    cli = tmp_path / "whisper-cli.exe"
+    cli.write_bytes(b"x")
+    model = tmp_path / "m.bin"
+    model.write_bytes(b"x")
+
+    def fake_run(cmd, **kwargs):
+        class _Result:
+            returncode = 183
+            stdout = ""
+            stderr = "Invalid data found when processing input"
+
+        return _Result()
+
+    monkeypatch.setattr("transcription_tool.transcribe.subprocess.run", fake_run)
+
+    with pytest.raises(RuntimeError, match="終了コード 183"):
+        transcribe(
+            audio_path=audio,
+            vocabulary_path=None,
             output_dir=tmp_path / "out",
             whisper_cli=cli,
             whisper_model=model,

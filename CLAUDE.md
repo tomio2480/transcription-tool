@@ -1,8 +1,8 @@
 # CLAUDE.md
 
 本ファイルは `transcription-tool` リポジトリでの Claude Code の常設指示である．
-本リポジトリは録音音声の文字起こし CLI `transcribe-audio` を提供し，
-複数のリポジトリ（`task-report`・`resume`・`blog-private` 等）から共用される．
+本リポジトリは録音音声の文字起こし CLI `transcribe-audio` を提供する．
+この CLI は `task-report`・`resume`・`blog-private` 等の複数のリポジトリから共用される．
 
 ## 📚 目次
 
@@ -41,10 +41,11 @@
 ## ✍️ 文体
 
 - `README.md` は利用者向けの手引きのため「ですます調」で書く．
-- `docs/` と本ファイルは規律・仕様の記述のため「である調」で書く．
+- `docs/`・`AGENTS.md`・本ファイルは規律・仕様の記述のため「である調」で書く．
 
 ## 📑 参照ドキュメント
 
 - [docs/spec/requirements.md](docs/spec/requirements.md): 要求・要件・用語集
 - [README.md](README.md): 導入と使い方
+- [AGENTS.md](AGENTS.md): 利用側の AI エージェントが本ツールを呼び出すときの約束事
 - [LICENSE](LICENSE): MIT License
