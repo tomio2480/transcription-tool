@@ -32,6 +32,6 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Check for Claude session URLs via composite action
-        uses: tomio2480/github-workflows/.github/actions/session-url-check@d075ccacb34198a99bdb56063ee2a77443b4f244 # v2
+        uses: tomio2480/github-workflows/.github/actions/session-url-check@0abe714b46004441d0f4ab27bacbb7f4cc3fddf9 # v2
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
